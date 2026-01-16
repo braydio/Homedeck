@@ -1,0 +1,32 @@
+nodes: 
+  - name: dietpi
+    hostname: 
+    host: 192.168.1.198
+    role: 
+    os: dietpi
+
+  - name: 
+    hostname: 
+    host: 192.168.1.227
+    role: 
+    os: dietpi
+
+  - name: archdesk
+    hostname: 
+    host: 192.168.1.198
+    role: 
+    os: arch linux
+
+  - name: archpad-nano
+    hostname: 
+    host: 192.168.1.
+    role: 
+    os: arch
+
+  - name: archtop
+    hostname: 
+    host: 
+    role:
+    os: arch
+
+  - name: cringedows-desk

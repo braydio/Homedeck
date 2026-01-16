@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Homelab Health</title>
+
+    <!-- Auto-refresh as a dumb-but-honest default -->
+    <meta http-equiv="refresh" content="10" />
+
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #0f1621;
+        --panel2: #0c121b;
+        --text: #e8eef6;
+        --muted: #9aa7b5;
+        --border: rgba(255, 255, 255, 0.08);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+        --ok: #35d07f;
+        --warn: #f6c356;
+        --bad: #ff5c5c;
+        --unknown: #8aa2b2;
+
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          "Apple Color Emoji", "Segoe UI Emoji";
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: radial-gradient(1200px 800px at 20% 10%, #122033 0%, var(--bg) 60%);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+
+      header {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: 0.2px;
+      }
+
+      .sub {
+        font-family: var(--mono);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .panel {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 12px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.15);
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        user-select: none;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--unknown);
+        box-shadow: 0 0 0 3px rgba(138, 162, 178, 0.12);
+      }
+
+      .dot.ok {
+        background: var(--ok);
+        box-shadow: 0 0 0 3px rgba(53, 208, 127, 0.16);
+      }
+      .dot.warn {
+        background: var(--warn);
+        box-shadow: 0 0 0 3px rgba(246, 195, 86, 0.16);
+      }
+      .dot.bad {
+        background: var(--bad);
+        box-shadow: 0 0 0 3px rgba(255, 92, 92, 0.16);
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      input[type="search"] {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 8px 10px;
+        min-width: 220px;
+        outline: none;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      input[type="search"]::placeholder {
+        color: rgba(154, 167, 181, 0.7);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      thead th {
+        text-align: left;
+        font-weight: 650;
+        color: rgba(232, 238, 246, 0.92);
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.12);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+
+      tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        color: rgba(232, 238, 246, 0.9);
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      tbody tr:nth-child(even) {
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--muted);
+      }
+
+      .badge strong {
+        color: rgba(232, 238, 246, 0.92);
+        font-weight: 650;
+      }
+
+      .right {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .footer {
+        margin-top: 10px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      /* tiny screens: keep it usable */
+      @media (max-width: 720px) {
+        thead th:nth-child(2),
+        tbody td:nth-child(2),
+        thead th:nth-child(3),
+        tbody td:nth-child(3) {
+          display: none;
+        }
+        input[type="search"] {
+          min-width: 160px;
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Homelab Health</h1>
+        <div class="sub" id="updatedText">Last updated: —</div>
+      </header>
+
+      <div class="panel">
+        <div class="toolbar">
+          <div class="pill" title="Overall status counts">
+            <span class="dot ok"></span><span id="okCount">0</span>
+            <span class="dot warn" style="margin-left: 8px"></span><span id="warnCount">0</span>
+            <span class="dot bad" style="margin-left: 8px"></span><span id="badCount">0</span>
+            <span class="dot" style="margin-left: 8px"></span><span id="unkCount">0</span>
+          </div>
+
+          <div class="spacer"></div>
+
+          <input id="search" type="search" placeholder="filter: name / role / os" />
+        </div>
+
+        <div style="overflow: auto; max-height: 70vh">
+          <table aria-label="Homelab node health table">
+            <thead>
+              <tr>
+                <th style="min-width: 180px">Node</th>
+                <th style="min-width: 120px">Role</th>
+                <th style="min-width: 120px">OS</th>
+                <th style="min-width: 140px">Status</th>
+                <th class="right" style="min-width: 110px">Latency</th>
+                <th class="right" style="min-width: 210px">Last seen</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer">
+        v1: liveness + latency. If this page is wrong, everything else is cosplay.
+      </div>
+    </div>
+
+    <script>
+      /**
+       * This file expects a JSON endpoint at:
+       *   /api/health
+       *
+       * Schema (flexible, but recommended):
+       * {
+       *   "generated_at": "2026-01-10T02:20:00Z",
+       *   "nodes": [
+       *     {
+       *       "name": "pi4b",
+       *       "role": "pi",
+       *       "os": "raspios",
+       *       "status": "ok" | "warn" | "bad" | "unknown",
+       *       "latency_ms": 12.3,
+       *       "last_seen": "2026-01-10T02:19:58Z"
+       *     }
+       *   ]
+       * }
+       */
+
+      const $ = (id) => document.getElementById(id);
+
+      // Fallback demo data so the page renders even before backend exists.
+      const DEMO = {
+        generated_at: new Date().toISOString(),
+        nodes: [
+          { name: "pi-4b", role: "pi", os: "raspios", status: "ok", latency_ms: 8.2, last_seen: new Date().toISOString() },
+          { name: "pi-0-2w", role: "pi", os: "raspios", status: "warn", latency_ms: 24.9, last_seen: new Date(Date.now() - 60_000).toISOString() },
+          { name: "archdesk", role: "desktop", os: "arch", status: "ok", latency_ms: 1.7, last_seen: new Date().toISOString() },
+          { name: "thinkpad", role: "laptop", os: "arch", status: "unknown", latency_ms: null, last_seen: null },
+          { name: "winbox", role: "desktop", os: "windows", status: "bad", latency_ms: null, last_seen: new Date(Date.now() - 9 * 60_000).toISOString() },
+        ],
+      };
+
+      function fmtTime(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return "—";
+        return d.toLocaleString();
+      }
+
+      function fmtLatency(ms) {
+        if (ms === null || ms === undefined) return "—";
+        const n = Number(ms);
+        if (!Number.isFinite(n)) return "—";
+        return `${n.toFixed(n < 10 ? 1 : 0)} ms`;
+      }
+
+      function statusLabel(s) {
+        switch ((s || "").toLowerCase()) {
+          case "ok":
+          case "up":
+          case "alive":
+            return { cls: "ok", text: "OK" };
+          case "warn":
+          case "degraded":
+            return { cls: "warn", text: "WARN" };
+          case "bad":
+          case "down":
+          case "dead":
+            return { cls: "bad", text: "DOWN" };
+          default:
+            return { cls: "", text: "UNKNOWN" };
+        }
+      }
+
+      function render(data) {
+        const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+        const gen = data?.generated_at || new Date().toISOString();
+
+        $("updatedText").textContent = `Last updated: ${fmtTime(gen)}`;
+
+        // counts
+        let ok = 0,
+          warn = 0,
+          bad = 0,
+          unk = 0;
+
+        const rows = nodes
+          .slice()
+          .sort((a, b) => (a?.name || "").localeCompare(b?.name || ""))
+          .map((n) => {
+            const st = statusLabel(n.status);
+            if (st.cls === "ok") ok++;
+            else if (st.cls === "warn") warn++;
+            else if (st.cls === "bad") bad++;
+            else unk++;
+
+            const name = n?.name ?? "—";
+            const role = n?.role ?? "—";
+            const os = n?.os ?? "—";
+            const latency = fmtLatency(n?.latency_ms);
+            const lastSeen = fmtTime(n?.last_seen);
+
+            return `
+              <tr data-filter="${String(name)} ${String(role)} ${String(os)} ${st.text}">
+                <td><strong>${escapeHtml(name)}</strong></td>
+                <td class="muted">${escapeHtml(role)}</td>
+                <td class="muted">${escapeHtml(os)}</td>
+                <td>
+                  <span class="status">
+                    <span class="dot ${st.cls}"></span>
+                    <span class="badge"><strong>${st.text}</strong></span>
+                  </span>
+                </td>
+                <td class="right">${escapeHtml(latency)}</td>
+                <td class="right muted">${escapeHtml(lastSeen)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        $("rows").innerHTML = rows || `<tr><td colspan="6" class="muted">No nodes yet.</td></tr>`;
+
+        $("okCount").textContent = String(ok);
+        $("warnCount").textContent = String(warn);
+        $("badCount").textContent = String(bad);
+        $("unkCount").textContent = String(unk);
+
+        applyFilter();
+      }
+
+      function applyFilter() {
+        const q = ($("search").value || "").trim().toLowerCase();
+        const trs = $("rows").querySelectorAll("tr[data-filter]");
+        trs.forEach((tr) => {
+          const hay = (tr.getAttribute("data-filter") || "").toLowerCase();
+          tr.style.display = hay.includes(q) ? "" : "none";
+        });
+      }
+
+      function escapeHtml(v) {
+        return String(v)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      async function load() {
+        try {
+          const res = await fetch("/api/health", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          render(data);
+        } catch (e) {
+          // Backend not ready yet? Render demo so the layout still works.
+          render(DEMO);
+        }
+      }
+
+      $("search").addEventListener("input", applyFilter);
+
+      // Initial load
+      load();
+
+      // Optional: client-side refresh without full page reload
+      setInterval(load, 10_000);
+    </script>
+  </body>
+</html>
+
