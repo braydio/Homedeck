@@ -146,6 +146,36 @@
         color: rgba(154, 167, 181, 0.7);
       }
 
+      select {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 6px 10px;
+        outline: none;
+        font-family: var(--mono);
+        font-size: 12px;
+        appearance: none;
+      }
+
+      .theme-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .theme-picker label {
+        color: var(--muted);
+      }
+
+      .theme-meta {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -230,6 +260,102 @@
           flex: 1;
         }
       }
+
+      :root[data-theme="nightfox"] {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #0f1621;
+        --panel2: #0c121b;
+        --text: #e8eef6;
+        --muted: #9aa7b5;
+        --border: rgba(255, 255, 255, 0.08);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+        --ok: #35d07f;
+        --warn: #f6c356;
+        --bad: #ff5c5c;
+        --unknown: #8aa2b2;
+      }
+
+      :root[data-theme="gruvbox"] {
+        color-scheme: dark;
+        --bg: #1d2021;
+        --panel: #282828;
+        --panel2: #202020;
+        --text: #ebdbb2;
+        --muted: #bdae93;
+        --border: rgba(235, 219, 178, 0.14);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+        --ok: #b8bb26;
+        --warn: #fabd2f;
+        --bad: #fb4934;
+        --unknown: #83a598;
+      }
+
+      :root[data-theme="rosepine"] {
+        color-scheme: dark;
+        --bg: #191724;
+        --panel: #1f1d2e;
+        --panel2: #26233a;
+        --text: #e0def4;
+        --muted: #908caa;
+        --border: rgba(224, 222, 244, 0.12);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+        --ok: #9ccfd8;
+        --warn: #f6c177;
+        --bad: #eb6f92;
+        --unknown: #c4a7e7;
+      }
+
+      :root[data-theme="tokyo-night"] {
+        color-scheme: dark;
+        --bg: #1a1b26;
+        --panel: #222436;
+        --panel2: #1f2335;
+        --text: #c0caf5;
+        --muted: #9aa5ce;
+        --border: rgba(192, 202, 245, 0.12);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --bad: #f7768e;
+        --unknown: #7aa2f7;
+      }
+
+      :root[data-theme="catppuccin-mocha"] {
+        color-scheme: dark;
+        --bg: #1e1e2e;
+        --panel: #26283a;
+        --panel2: #222235;
+        --text: #cdd6f4;
+        --muted: #a6adc8;
+        --border: rgba(205, 214, 244, 0.12);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+        --ok: #a6e3a1;
+        --warn: #f9e2af;
+        --bad: #f38ba8;
+        --unknown: #89b4fa;
+      }
+
+      :root[data-theme="dracula"] {
+        color-scheme: dark;
+        --bg: #1b1c2b;
+        --panel: #23243a;
+        --panel2: #1f2033;
+        --text: #f8f8f2;
+        --muted: #b6b6cc;
+        --border: rgba(248, 248, 242, 0.12);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+        --ok: #50fa7b;
+        --warn: #f1fa8c;
+        --bad: #ff5555;
+        --unknown: #8be9fd;
+      }
     </style>
   </head>
 
@@ -247,6 +373,12 @@
             <span class="dot warn" style="margin-left: 8px"></span><span id="warnCount">0</span>
             <span class="dot bad" style="margin-left: 8px"></span><span id="badCount">0</span>
             <span class="dot" style="margin-left: 8px"></span><span id="unkCount">0</span>
+          </div>
+
+          <div class="theme-picker" aria-label="Theme selector">
+            <label for="themeSelect">Theme</label>
+            <select id="themeSelect" aria-live="polite"></select>
+            <span class="theme-meta" id="themeMeta">Auto rotates hourly.</span>
           </div>
 
           <div class="spacer"></div>
@@ -299,6 +431,18 @@
 
       const $ = (id) => document.getElementById(id);
 
+      const THEME_STORAGE_KEY = "homedeck-theme";
+      const THEME_ROTATION_KEY = "homedeck-theme-rotation";
+
+      const THEMES = [
+        { id: "nightfox", label: "Nightfox" },
+        { id: "gruvbox", label: "Gruvbox" },
+        { id: "rosepine", label: "Rosé Pine" },
+        { id: "tokyo-night", label: "Tokyo Night" },
+        { id: "catppuccin-mocha", label: "Catppuccin Mocha" },
+        { id: "dracula", label: "Dracula" },
+      ];
+
       // Fallback demo data so the page renders even before backend exists.
       const DEMO = {
         generated_at: new Date().toISOString(),
@@ -316,6 +460,52 @@
         const d = new Date(iso);
         if (Number.isNaN(d.getTime())) return "—";
         return d.toLocaleString();
+      }
+
+      /**
+       * Return a consistent key representing the local-hour time bucket.
+       * @param {Date} [date]
+       * @returns {string}
+       */
+      function getHourKey(date = new Date()) {
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+      }
+
+      /**
+       * Apply the theme to the document and persist the selection.
+       * @param {string} themeId
+       */
+      function setTheme(themeId) {
+        const theme = THEMES.find((entry) => entry.id === themeId) || THEMES[0];
+        document.documentElement.dataset.theme = theme.id;
+        $("themeSelect").value = theme.id;
+        localStorage.setItem(THEME_STORAGE_KEY, theme.id);
+        $("themeMeta").textContent = `Auto rotates hourly. Current: ${theme.label}.`;
+      }
+
+      /**
+       * Advance to the next theme in the rotation order.
+       */
+      function advanceTheme() {
+        const current = localStorage.getItem(THEME_STORAGE_KEY);
+        const currentIndex = Math.max(
+          0,
+          THEMES.findIndex((entry) => entry.id === current),
+        );
+        const nextTheme = THEMES[(currentIndex + 1) % THEMES.length];
+        setTheme(nextTheme.id);
+      }
+
+      /**
+       * Rotate the theme if we have crossed into a new hour.
+       */
+      function syncThemeWithHour() {
+        const currentHourKey = getHourKey();
+        const lastHourKey = localStorage.getItem(THEME_ROTATION_KEY);
+        if (currentHourKey !== lastHourKey) {
+          advanceTheme();
+          localStorage.setItem(THEME_ROTATION_KEY, currentHourKey);
+        }
       }
 
       function fmtLatency(ms) {
@@ -430,13 +620,33 @@
       }
 
       $("search").addEventListener("input", applyFilter);
+      $("themeSelect").addEventListener("change", (event) => {
+        const themeId = event.target.value;
+        setTheme(themeId);
+        localStorage.setItem(THEME_ROTATION_KEY, getHourKey());
+      });
+
+      // TODO: Add front-end unit tests for theme rotation once a JS test harness exists.
+
+      THEMES.forEach((theme) => {
+        const option = document.createElement("option");
+        option.value = theme.id;
+        option.textContent = theme.label;
+        $("themeSelect").appendChild(option);
+      });
+
+      const initialTheme = localStorage.getItem(THEME_STORAGE_KEY) || THEMES[0].id;
+      setTheme(initialTheme);
+      syncThemeWithHour();
 
       // Initial load
       load();
 
       // Optional: client-side refresh without full page reload
       setInterval(load, 10_000);
+
+      // Rotate theme every minute so hour rollovers are noticed.
+      setInterval(syncThemeWithHour, 60_000);
     </script>
   </body>
 </html>
-
