@@ -82,6 +82,10 @@
         overflow: hidden;
       }
 
+      .panel + .panel {
+        margin-top: 16px;
+      }
+
       .toolbar {
         display: flex;
         align-items: center;
@@ -174,6 +178,12 @@
       .theme-meta {
         color: var(--muted);
         font-size: 11px;
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 650;
+        color: rgba(232, 238, 246, 0.92);
       }
 
       table {
@@ -403,6 +413,37 @@
         </div>
       </div>
 
+      <div class="panel">
+        <div class="toolbar">
+          <div class="section-title">Service integrations</div>
+          <div class="pill" title="Service status counts">
+            <span class="dot ok"></span><span id="serviceOkCount">0</span>
+            <span class="dot warn" style="margin-left: 8px"></span
+            ><span id="serviceWarnCount">0</span>
+            <span class="dot bad" style="margin-left: 8px"></span
+            ><span id="serviceBadCount">0</span>
+            <span class="dot" style="margin-left: 8px"></span
+            ><span id="serviceUnkCount">0</span>
+          </div>
+        </div>
+
+        <div style="overflow: auto; max-height: 60vh">
+          <table aria-label="Service integration health table">
+            <thead>
+              <tr>
+                <th style="min-width: 200px">Service</th>
+                <th style="min-width: 160px">Host</th>
+                <th style="min-width: 120px">Type</th>
+                <th style="min-width: 140px">Status</th>
+                <th class="right" style="min-width: 110px">Latency</th>
+                <th class="right" style="min-width: 180px">Details</th>
+              </tr>
+            </thead>
+            <tbody id="serviceRows"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="footer">
         v1: liveness + latency. If this page is wrong, everything else is cosplay.
       </div>
@@ -424,6 +465,18 @@
        *       "status": "ok" | "warn" | "bad" | "unknown",
        *       "latency_ms": 12.3,
        *       "last_seen": "2026-01-10T02:19:58Z"
+       *     }
+       *   ],
+       *   "services": [
+       *     {
+       *       "name": "Jellyfin",
+       *       "type": "http",
+       *       "host": "192.168.1.198",
+       *       "port": 8097,
+       *       "status": "ok" | "warn" | "bad" | "unknown",
+       *       "latency_ms": 12.3,
+       *       "detail": "HTTP 200",
+       *       "checked_at": "2026-01-10T02:19:58Z"
        *     }
        *   ]
        * }
@@ -452,6 +505,38 @@
           { name: "archdesk", role: "desktop", os: "arch", status: "ok", latency_ms: 1.7, last_seen: new Date().toISOString() },
           { name: "thinkpad", role: "laptop", os: "arch", status: "unknown", latency_ms: null, last_seen: null },
           { name: "winbox", role: "desktop", os: "windows", status: "bad", latency_ms: null, last_seen: new Date(Date.now() - 9 * 60_000).toISOString() },
+        ],
+        services: [
+          {
+            name: "Jellyfin",
+            type: "http",
+            host: "192.168.1.198",
+            port: 8097,
+            status: "ok",
+            latency_ms: 42.1,
+            detail: "HTTP 200",
+            checked_at: new Date().toISOString(),
+          },
+          {
+            name: "RSAssistant",
+            type: "systemd",
+            host: null,
+            port: null,
+            status: "warn",
+            latency_ms: null,
+            detail: "activating",
+            checked_at: new Date().toISOString(),
+          },
+          {
+            name: "Home Assistant",
+            type: "http",
+            host: "homeassistant",
+            port: 8123,
+            status: "bad",
+            latency_ms: null,
+            detail: "Connection refused",
+            checked_at: new Date().toISOString(),
+          },
         ],
       };
 
@@ -515,6 +600,16 @@
         return `${n.toFixed(n < 10 ? 1 : 0)} ms`;
       }
 
+      function fmtEndpoint(host, port) {
+        if (!host) return "—";
+        return port ? `${host}:${port}` : `${host}`;
+      }
+
+      function fmtServiceType(type) {
+        if (!type) return "—";
+        return String(type).toUpperCase();
+      }
+
       function statusLabel(s) {
         switch ((s || "").toLowerCase()) {
           case "ok":
@@ -533,13 +628,9 @@
         }
       }
 
-      function render(data) {
-        const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
-        const gen = data?.generated_at || new Date().toISOString();
+      function renderNodes(nodes, generatedAt) {
+        $("updatedText").textContent = `Last updated: ${fmtTime(generatedAt)}`;
 
-        $("updatedText").textContent = `Last updated: ${fmtTime(gen)}`;
-
-        // counts
         let ok = 0,
           warn = 0,
           bad = 0,
@@ -585,13 +676,70 @@
         $("warnCount").textContent = String(warn);
         $("badCount").textContent = String(bad);
         $("unkCount").textContent = String(unk);
+      }
 
+      function renderServices(services) {
+        let ok = 0,
+          warn = 0,
+          bad = 0,
+          unk = 0;
+
+        const rows = services
+          .slice()
+          .sort((a, b) => (a?.name || "").localeCompare(b?.name || ""))
+          .map((service) => {
+            const st = statusLabel(service.status);
+            if (st.cls === "ok") ok++;
+            else if (st.cls === "warn") warn++;
+            else if (st.cls === "bad") bad++;
+            else unk++;
+
+            const name = service?.name ?? "—";
+            const endpoint = fmtEndpoint(service?.host, service?.port);
+            const type = fmtServiceType(service?.type);
+            const latency = fmtLatency(service?.latency_ms);
+            const detail = service?.detail ?? "—";
+
+            return `
+              <tr data-filter="${String(name)} ${String(endpoint)} ${String(type)} ${st.text}">
+                <td><strong>${escapeHtml(name)}</strong></td>
+                <td class="muted">${escapeHtml(endpoint)}</td>
+                <td class="muted">${escapeHtml(type)}</td>
+                <td>
+                  <span class="status">
+                    <span class="dot ${st.cls}"></span>
+                    <span class="badge"><strong>${st.text}</strong></span>
+                  </span>
+                </td>
+                <td class="right">${escapeHtml(latency)}</td>
+                <td class="right muted">${escapeHtml(detail)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        $("serviceRows").innerHTML =
+          rows || `<tr><td colspan="6" class="muted">No services yet.</td></tr>`;
+
+        $("serviceOkCount").textContent = String(ok);
+        $("serviceWarnCount").textContent = String(warn);
+        $("serviceBadCount").textContent = String(bad);
+        $("serviceUnkCount").textContent = String(unk);
+      }
+
+      function render(data) {
+        const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+        const services = Array.isArray(data?.services) ? data.services : [];
+        const gen = data?.generated_at || new Date().toISOString();
+
+        renderNodes(nodes, gen);
+        renderServices(services);
         applyFilter();
       }
 
       function applyFilter() {
         const q = ($("search").value || "").trim().toLowerCase();
-        const trs = $("rows").querySelectorAll("tr[data-filter]");
+        const trs = document.querySelectorAll("tr[data-filter]");
         trs.forEach((tr) => {
           const hay = (tr.getAttribute("data-filter") || "").toLowerCase();
           tr.style.display = hay.includes(q) ? "" : "none";

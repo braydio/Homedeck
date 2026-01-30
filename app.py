@@ -13,4 +13,3 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 @app.get("/api/health")
 def health():
     return JSONResponse(collect())
-

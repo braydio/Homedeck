@@ -1,32 +1,71 @@
-nodes: 
+nodes:
   - name: dietpi
-    hostname: 
+    hostname: dietpi
     host: 192.168.1.198
-    role: 
+    role: host
     os: dietpi
 
-  - name: 
-    hostname: 
+  - name: dietpi-mini
+    hostname: dietpi-mini
     host: 192.168.1.227
-    role: 
+    role: mini
     os: dietpi
 
   - name: archdesk
-    hostname: 
-    host: 192.168.1.198
-    role: 
+    hostname: archdesk
+    host: 192.168.1.237
+    role: desktop
     os: arch linux
 
-  - name: archpad-nano
-    hostname: 
-    host: 192.168.1.
-    role: 
-    os: arch
+services:
+  - name: qBittorrent
+    type: http
+    host: 192.168.1.198
+    port: 8080
+    path: /
 
-  - name: archtop
-    hostname: 
-    host: 
-    role:
-    os: arch
+  - name: Jellyfin
+    type: http
+    host: 192.168.1.198
+    port: 8097
+    path: /
 
-  - name: cringedows-desk
+  - name: Radarr
+    type: http
+    host: 192.168.1.198
+    port: 7878
+    path: /
+
+  - name: Sonarr
+    type: http
+    host: 192.168.1.198
+    port: 8989
+    path: /
+
+  - name: Prowlarr
+    type: http
+    host: 192.168.1.198
+    port: 9696
+    path: /
+
+  - name: RSAssistant
+    type: systemd
+    unit: RSAssistant.service
+
+  - name: Home Assistant
+    type: http
+    host: homeassistant
+    port: 8123
+    path: /
+
+  - name: pyNance Dashboard
+    type: http
+    host: 192.168.1.237
+    port: 3353
+    path: /
+
+  - name: Authy
+    type: http
+    host: 192.168.1.227
+    port: 6061
+    path: /
